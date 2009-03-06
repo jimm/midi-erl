@@ -15,7 +15,7 @@
 %%
 
 -export([get_var_length/1]).
--export([get_meta_name/1, get_status_name/1, get_controller_name/1]).
+-export([get_meta_const/1, get_status_const/1, get_controller_const/1]).
 -export([sharps_to_key/1, get_event/2]).
 
 meta_nums() ->
@@ -145,13 +145,13 @@ name_conv(A, L) when is_atom(A) ->
 	    A
     end.
 
-get_meta_name(M) ->
+get_meta_const(M) ->
     name_conv(M, meta_nums()).
 
-get_status_name(M) ->
+get_status_const(M) ->
     name_conv(M, status_nums()).
 
-get_controller_name(M) ->
+get_controller_const(M) ->
     name_conv(M, controller_nums()).
 
 keys() ->
@@ -172,7 +172,7 @@ get_var_length(<<1:1, N1:7/integer-unsigned, 1:1, N2:7/integer-unsigned, 1:1,
     {N1 bsl 21 + N2 bsl 14 + N3 bsl 7 + N4, Rest}.
 
 get_ev_controller_par(?MIDI_STATUS_CONTROLLER_CHANGE, A) ->
-    get_controller_name(A);
+    get_controller_const(A);
 get_ev_controller_par(_, A) ->
     A.
 

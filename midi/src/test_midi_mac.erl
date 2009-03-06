@@ -96,14 +96,14 @@ z(Speed) ->
 %%     F = transpose(F0, -1),
     F = F0,
     lists:foreach(fun({Delay, {Status, Channel, Note, Velocity}}) when Status=:=on; Status=:=off ->
-			  StatusNum = midi:get_status_name(Status),
+			  StatusNum = midi:get_status_const(Status),
 			  ok = music_device_midi_event(Synth, StatusNum, Channel, Note, Velocity),
 			  timer:sleep(trunc(Delay*Speed));
 		     ({Delay, {program_change, Channel, P}}) ->
 			  ok = music_device_midi_event(Synth, ?MIDI_STATUS_PROGRAM_CHANGE, Channel, P, 0),
 			  timer:sleep(trunc(Delay*Speed));
 		     ({Delay, {controller_change, Channel, Controller, Value}}) ->
-			  ControllerNum = midi:get_controller_name(Controller),
+			  ControllerNum = midi:get_controller_const(Controller),
 			  ok = music_device_midi_event(Synth, ?MIDI_STATUS_CONTROLLER_CHANGE, Channel,
 						       ControllerNum, Value),
 			  timer:sleep(trunc(Delay*Speed));
