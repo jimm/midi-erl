@@ -4,7 +4,7 @@
 <cproject>
 <storageModule moduleId="org.eclipse.cdt.core.settings">
 <cconfiguration id="cdt.managedbuild.config.macosx.so.debug.806354941">
-<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.macosx.so.debug.806354941" moduleId="org.eclipse.cdt.core.settings" name="Debug">
+<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.macosx.so.debug.806354941" moduleId="org.eclipse.cdt.core.settings" name="Debug_mac">
 <externalSettings>
 <externalSetting>
 <entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/erl_midi"/>
@@ -20,7 +20,7 @@
 </extensions>
 </storageModule>
 <storageModule moduleId="cdtBuildSystem" version="4.0.0">
-<configuration artifactExtension="so" artifactName="erl_midi" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.macosx.so.debug.806354941" name="Debug" parent="cdt.managedbuild.config.macosx.so.debug">
+<configuration artifactExtension="so" artifactName="erl_midi" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.macosx.so.debug.806354941" name="Debug_mac" parent="cdt.managedbuild.config.macosx.so.debug">
 <folderInfo id="cdt.managedbuild.config.macosx.so.debug.806354941." name="/" resourcePath="">
 <toolChain id="cdt.managedbuild.toolchain.gnu.macosx.so.debug.823935490" name="MacOSX GCC" superClass="cdt.managedbuild.toolchain.gnu.macosx.so.debug">
 <targetPlatform id="cdt.managedbuild.target.gnu.platform.macosx.so.debug.1619221545" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.macosx.so.debug"/>
@@ -498,7 +498,7 @@
 <storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
 </cconfiguration>
 <cconfiguration id="cdt.managedbuild.config.macosx.so.release.477954454">
-<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.macosx.so.release.477954454" moduleId="org.eclipse.cdt.core.settings" name="Release">
+<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.macosx.so.release.477954454" moduleId="org.eclipse.cdt.core.settings" name="Release_mac">
 <externalSettings>
 <externalSetting>
 <entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/erl_midi"/>
@@ -514,7 +514,7 @@
 </extensions>
 </storageModule>
 <storageModule moduleId="cdtBuildSystem" version="4.0.0">
-<configuration artifactExtension="so" artifactName="erl_midi" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.release" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.macosx.so.release.477954454" name="Release" parent="cdt.managedbuild.config.macosx.so.release">
+<configuration artifactExtension="so" artifactName="erl_midi" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.sharedLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.sharedLib,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.release" cleanCommand="rm -rf" description="" id="cdt.managedbuild.config.macosx.so.release.477954454" name="Release_mac" parent="cdt.managedbuild.config.macosx.so.release">
 <folderInfo id="cdt.managedbuild.config.macosx.so.release.477954454." name="/" resourcePath="">
 <toolChain id="cdt.managedbuild.toolchain.gnu.macosx.so.release.268962133" name="MacOSX GCC" superClass="cdt.managedbuild.toolchain.gnu.macosx.so.release">
 <targetPlatform id="cdt.managedbuild.target.gnu.platform.macosx.so.release.1771841587" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.macosx.so.release"/>
