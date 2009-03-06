@@ -3,12 +3,17 @@
 -include("midi.hrl").
 
 -export([get_port/0, test/0, now/0, au_graph_initialize/1, au_graph_start/1,
-	 music_device_midi_event/5, new_au_graph/0]).
+	 music_device_midi_event/5, new_au_graph/0, au_graph_open/1, au_graph_add_node/2,
+	 au_graph_connect_node_input/5, au_graph_node_info/2, music_device_midi_sys_ex/2,
+	 get_au_const/1]).
+
+-export([connect_source/2, create_input_port/2, create_output_port/2, create_client/1,
+	 list_destinations/0, list_sources/0, list_midi_devices/0, midi_out/7, send_midi/4]).
 
 %% -define(DEBUG, 1).
 
--compile(export_all).
 -ifdef(DEBUG).
+-compile(export_all).
 -define(D(T), io:format("~p\n", [{?MODULE, ?LINE, T}])).
 -else.
 -define(D(T), ok).

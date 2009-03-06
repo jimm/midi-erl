@@ -14,13 +14,13 @@
 %% Exported Functions
 %%
 
--export([get_midi_file/1, x/0]).
+-export([read_midi_file/1]).
 
 %%
 %% API Functions
 %%
 
-get_midi_file(Filename) when is_list(Filename) ->
+read_midi_file(Filename) when is_list(Filename) ->
     {ok, B} = file:read_file(Filename),
     get_chunks(B, []).
 
@@ -58,7 +58,6 @@ get_events(DataWTime, Status, Acc) ->
     {Delta, Data} = midi:get_var_length(DataWTime),
     case get_event_w_running_status(Data, Status) of
 	{NewStatus, {Event, Rest}} ->
-%% 	    io:format("NewStatus ~p, Event ~p\n", [midi:get_status_name(NewStatus), Event]),
 	    get_events(Rest, NewStatus, [{Delta, Event} | Acc]);
 	{Event, Rest} ->
 	    get_events(Rest, Status, [{Delta, Event} | Acc])
@@ -100,10 +99,6 @@ get_event(<<?MIDI_STATUS_META>>, <<MetaType, Data/binary>>) ->
     {MetaEvent, Rest1};
 get_event(Status, Data) ->
     midi:get_event(Status, Data).
-
-x() ->
-    get_midi_file("/Users/jakob/Desktop/Jazz.mid").
-
 
 
 
