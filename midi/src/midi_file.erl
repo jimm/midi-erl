@@ -94,7 +94,7 @@ get_chunks(<<Type:4/binary, Len:32/integer-unsigned, Data:Len/binary, Rest/binar
 get_event(<<?MIDI_STATUS_META>>, <<MetaType, Data/binary>>) ->
     {Len, Rest0} = midi:get_var_length(Data),
     <<EventData:Len/binary, Rest1/binary>> = Rest0,
-    MetaName = midi:get_meta_name(MetaType),
+    MetaName = midi:get_meta_const(MetaType),
     MetaEvent = {meta_event, MetaName, get_meta_event_data(MetaName, EventData)},
     {MetaEvent, Rest1};
 get_event(Status, Data) ->

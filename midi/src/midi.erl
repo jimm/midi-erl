@@ -181,15 +181,15 @@ get_event(<<Sysex:8>>, <<Data/binary>>) % var. length parameter
   when Sysex =:= ?MIDI_STATUS_SYSEX; Sysex =:= ?MIDI_STATUS_SYSEX_F7; Sysex =:= ?MIDI_STATUS_SONG_POINTER ->
     {Len, Rest0} = get_var_length(Data),
     <<EventData:Len/binary, Rest1/binary>> = Rest0,
-    Name = midi:get_status_name(Sysex),
+    Name = midi:get_status_const(Sysex),
     {{Name, EventData}, Rest1};
 get_event(<<N:4, Channel:4>>, <<A, B, Rest/binary>>) % two bytes parameter
   when N =:= ?MIDI_STATUS_OFF; N =:= ?MIDI_STATUS_ON; N =:= ?MIDI_STATUS_POLY_AFTERTOUCH;
        N =:= ?MIDI_STATUS_CONTROLLER_CHANGE; N =:= ?MIDI_STATUS_PITCH_BEND ->
-    Name = midi:get_status_name(N),
+    Name = midi:get_status_const(N),
     Par = get_ev_controller_par(N, A),
     {{Name, Channel, Par, B}, Rest};
 get_event(<<N:4, Channel:4>>, <<A, Rest/binary>>) % one byte parameter
   when N =:= ?MIDI_STATUS_PROGRAM_CHANGE; N =:= ?MIDI_STATUS_AFTERTOUCH ->
-    Name = midi:get_status_name(N),
+    Name = midi:get_status_const(N),
     {{Name, Channel, A}, Rest}.
