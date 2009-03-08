@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <?fileVersion 4.0.0?>
 
 <cproject>
@@ -63,6 +63,7 @@
 <listOptionValue builtIn="false" value="/System/Library/Frameworks/AudioUnit.framework/Headers"/>
 <listOptionValue builtIn="false" value="/System/Library/Frameworks/AudioToolbox.framework/Headers"/>
 <listOptionValue builtIn="false" value="/System/Library/Frameworks/CoreServices.framework/Headers"/>
+<listOptionValue builtIn="false" value="/System/Library/Frameworks/CoreMIDI.framework/Headers"/>
 </option>
 <option id="gnu.cpp.compiler.option.other.other.1276862499" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0" valueType="string"/>
 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1429572820" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>

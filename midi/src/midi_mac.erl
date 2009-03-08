@@ -2,6 +2,7 @@
 
 -include("midi.hrl").
 
+%% Platform-specific
 -export([get_port/0, test/0, now/0, au_graph_initialize/1, au_graph_start/1,
 	 music_device_midi_event/5, new_au_graph/0, au_graph_open/1, au_graph_add_node/2,
 	 au_graph_connect_node_input/5, au_graph_node_info/2, music_device_midi_sys_ex/2,
@@ -9,6 +10,10 @@
 
 -export([connect_source/2, create_input_port/2, create_output_port/2, create_client/1,
 	 list_destinations/0, list_sources/0, list_midi_devices/0, midi_out/7, send_midi/4]).
+
+%% High-level
+-export([list_outputs/0, list_inputs/0, open_output/1, open_input/1, close/1,
+	 send/2, open_soft_synth_output/0, set_receiver/2]).
 
 %% -define(DEBUG, 1).
 
@@ -40,6 +45,10 @@
 -define(DRV_AU_GRAPH_CONNECT_NODE_INPUT, 18).
 -define(DRV_AU_GRAPH_NODE_INFO, 19).
 -define(DRV_MUSIC_DEVICE_MIDI_SYS_EX, 20).
+
+-define(DRV_DISPOSE_CLIENT, 21).
+-define(DRV_DISPOSE_INPUT_PORT, 22).
+-define(DRV_DISPOSE_OUTPUT_PORT, 23).
 
 get_port() ->
     case whereis(erl_midi) of
@@ -214,3 +223,28 @@ create_input_port(Client, Name) ->
 
 connect_source(Port, Source) ->
     do_op(?DRV_CONNECT_SOURCE, {Port, Source}).
+
+%% High-level API
+list_outputs() ->
+    list_destinations().
+
+list_inputs() ->
+    list_sources().
+
+open_output(OutputNum) ->
+    ok.
+
+open_input(InputNum) ->
+    ok.
+
+close(OpenOrInput) ->
+    ok.
+
+send(OutputHandle, MidiEvent) ->
+    ok.
+
+open_soft_synth_output() ->
+    ok.
+
+set_receiver(InputHandle, Pid) ->
+    ok.
