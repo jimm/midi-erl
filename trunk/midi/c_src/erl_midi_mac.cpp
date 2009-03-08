@@ -127,7 +127,9 @@ enum
     DRV_MUSIC_DEVICE_MIDI_SYS_EX,
 
     DRV_DISPOSE_CLIENT,
-    DRV_DISPOSE_PORT
+    DRV_DISPOSE_PORT,
+
+    DRV_DISPOSE_AU_GRAPH
 };
 
 //static void output(our_data_t* data, ei_x_buff* x)
@@ -241,6 +243,7 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 	break;
     case DRV_DISPOSE_CLIENT:
     case DRV_DISPOSE_PORT:
+    case DRV_DISPOSE_AU_GRAPH:
 	do_dispose(data, buf, len, command);
 	break;
     default:
@@ -1036,12 +1039,20 @@ static void do_dispose(our_data_t* data, char* buf, int len, int command)
     if (ei_decode_version(buf, &index, &version) != 0)
 	goto error;
     MIDIObjectRef obj;
-    if (!decode_midi_obj(buf, &index, &obj))
-	goto error;
+    AUGraph g;
+    if (command == DRV_DISPOSE_AU_GRAPH) {
+	if (!decode_au_graph(buf, &index, &g))
+	    goto error;
+    } else {
+	if (!decode_midi_obj(buf, &index, &obj))
+	    goto error;
+    }
     if (command == DRV_DISPOSE_CLIENT)
 	err = MIDIClientDispose(reinterpret_cast<MIDIClientRef>(obj));
     else if (command == DRV_DISPOSE_PORT)
 	err = MIDIPortDispose(reinterpret_cast<MIDIPortRef>(obj));
+    else if (command == DRV_DISPOSE_AU_GRAPH)
+	err = DisposeAUGraph(g);
     error: ;
     ei_x_buff* x = &data->x;
     encode_ok_or_error(x, err);

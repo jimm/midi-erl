@@ -47,8 +47,8 @@
 -define(DRV_MUSIC_DEVICE_MIDI_SYS_EX, 20).
 
 -define(DRV_DISPOSE_CLIENT, 21).
--define(DRV_DISPOSE_INPUT_PORT, 22).
--define(DRV_DISPOSE_OUTPUT_PORT, 23).
+-define(DRV_DISPOSE_PORT, 23).
+-define(DRV_DISPOSE_AU_GRAPH, 24).
 
 get_port() ->
     case whereis(erl_midi) of
@@ -224,6 +224,15 @@ create_input_port(Client, Name) ->
 connect_source(Port, Source) ->
     do_op(?DRV_CONNECT_SOURCE, {Port, Source}).
 
+dispose_port(Port, MidiPort) ->
+    do_op(?DRV_DISPOSE_PORT, MidiPort).
+
+dispose_client(Port, Client) ->
+    do_op(?DRV_DISPOSE_CLIENT, Client).
+
+dispose_au_graph(Port, Graph) ->
+    do_op(?DRV_DISPOSE_AU_GRAPH, Graph).
+
 %% High-level API
 list_outputs() ->
     list_destinations().
@@ -237,7 +246,7 @@ open_output(OutputNum) ->
 open_input(InputNum) ->
     ok.
 
-close(OpenOrInput) ->
+close(OutputInputOrGraph) ->
     ok.
 
 send(OutputHandle, MidiEvent) ->
