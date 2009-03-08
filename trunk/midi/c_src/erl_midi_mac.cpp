@@ -27,6 +27,7 @@
 #include <CoreServices.h> //for file stuff
 #include <AudioUnit.h>
 #include <AudioToolbox.h> //for AUGraph
+#include <CoreMIDI.h>
 
 using namespace std;
 
@@ -123,7 +124,10 @@ enum
     DRV_AU_GRAPH_OPEN,
     DRV_AU_GRAPH_CONNECT_NODE_INPUT,
     DRV_AU_GRAPH_NODE_INFO,
-    DRV_MUSIC_DEVICE_MIDI_SYS_EX
+    DRV_MUSIC_DEVICE_MIDI_SYS_EX,
+
+    DRV_DISPOSE_CLIENT,
+    DRV_DISPOSE_PORT
 };
 
 //static void output(our_data_t* data, ei_x_buff* x)
@@ -158,6 +162,7 @@ static void do_au_graph_open(our_data_t* data, char* buf, int len);
 static void do_au_graph_connect_node_input(our_data_t* data, char* buf, int len);
 static void do_au_graph_node_info(our_data_t* data, char* buf, int len);
 static void do_music_device_midi_sys_ex(our_data_t* data, char* buf, int len);
+static void do_dispose(our_data_t* data, char* buf, int len, int command);
 
 static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 	int len, char **rbuf, int rlen)
@@ -233,6 +238,10 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 	break;
     case DRV_NOW:
 	do_now(data);
+	break;
+    case DRV_DISPOSE_CLIENT:
+    case DRV_DISPOSE_PORT:
+	do_dispose(data, buf, len, command);
 	break;
     default:
 	r = -1;
@@ -1019,3 +1028,27 @@ static void do_connect_source(our_data_t* data, char* buf, int len)
     ei_x_buff* x = &data->x;
     encode_ok_or_error(x, err);
 }
+
+static void do_dispose(our_data_t* data, char* buf, int len, int command)
+{
+    OSStatus err = -1;
+    int index = 0, version;
+    if (ei_decode_version(buf, &index, &version) != 0)
+	goto error;
+    MIDIObjectRef obj;
+    if (!decode_midi_obj(buf, &index, &obj))
+	goto error;
+    if (command == DRV_DISPOSE_CLIENT)
+	err = MIDIClientDispose(reinterpret_cast<MIDIClientRef>(obj));
+    else if (command == DRV_DISPOSE_PORT)
+	err = MIDIPortDispose(reinterpret_cast<MIDIPortRef>(obj));
+    error: ;
+    ei_x_buff* x = &data->x;
+    encode_ok_or_error(x, err);
+}
+
+
+
+
+
+
