@@ -21,7 +21,7 @@
 
 -import(midi_mac, [create_client/1, list_destinations/0, create_output_port/2, midi_out/7]).
 
-%% -define(DEBUG, 1).
+-define(DEBUG, 1).
 
 -compile(export_all).
 -ifdef(DEBUG).
@@ -92,7 +92,7 @@ z(Speed) ->
     {ok, Graph, Synth} = createAuGraph(),
     ok = au_graph_initialize(Graph),
     ok = au_graph_start(Graph),
-    [_ | [F0]] = midi_file:get_midi_file("/Users/jakob/Desktop/jazz.mid"),
+    [_ | [F0]] = midi_file:read_midi_file("/Users/jakob/Desktop/jazz.mid"),
 %%     F = transpose(F0, -1),
     F = F0,
     lists:foreach(fun({Delay, {Status, Channel, Note, Velocity}}) when Status=:=on; Status=:=off ->

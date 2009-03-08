@@ -16,7 +16,7 @@
 
 -export([get_var_length/1]).
 -export([get_meta_const/1, get_status_const/1, get_controller_const/1]).
--export([sharps_to_key/1, get_event/2]).
+-export([sharps_to_key/1, get_event/2, midi_event_to_numbers/1]).
 
 meta_nums() ->
     [{?MIDI_META_SEQUENCE_NUMBER, sequence_number},
@@ -193,3 +193,15 @@ get_event(<<N:4, Channel:4>>, <<A, Rest/binary>>) % one byte parameter
   when N =:= ?MIDI_STATUS_PROGRAM_CHANGE; N =:= ?MIDI_STATUS_AFTERTOUCH ->
     Name = midi:get_status_const(N),
     {{Name, Channel, A}, Rest}.
+
+midi_event_to_numbers({Status, Channel, Note, Velocity}) when Status=:=on; Status=:=off ->
+    StatusNum = get_status_const(Status),
+    {StatusNum, Channel, Note, Velocity};
+midi_event_to_numbers({program_change, Channel, P}) ->
+    {?MIDI_STATUS_PROGRAM_CHANGE, Channel, P, 0};
+midi_event_to_numbers({controller_change, Channel, Controller, Value}) ->
+    ControllerNum = midi:get_controller_const(Controller),
+    {?MIDI_STATUS_CONTROLLER_CHANGE, Channel, ControllerNum, Value};
+midi_event_to_numbers({Sysex, Data}) ->
+    StatusNum = get_status_const(Sysex),
+    {StatusNum, Data}.
