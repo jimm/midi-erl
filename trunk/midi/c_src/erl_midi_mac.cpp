@@ -128,8 +128,9 @@ enum
 
     DRV_DISPOSE_CLIENT,
     DRV_DISPOSE_PORT,
+    DRV_DISPOSE_AU_GRAPH,
 
-    DRV_DISPOSE_AU_GRAPH
+    DRV_SEND_MIDI_SYS_EX
 };
 
 //static void output(our_data_t* data, ei_x_buff* x)
@@ -165,6 +166,8 @@ static void do_au_graph_connect_node_input(our_data_t* data, char* buf, int len)
 static void do_au_graph_node_info(our_data_t* data, char* buf, int len);
 static void do_music_device_midi_sys_ex(our_data_t* data, char* buf, int len);
 static void do_dispose(our_data_t* data, char* buf, int len, int command);
+
+static void do_send_midi_sysex(our_data_t* data, char* buf, int len);
 
 static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 	int len, char **rbuf, int rlen)
@@ -245,6 +248,9 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
     case DRV_DISPOSE_PORT:
     case DRV_DISPOSE_AU_GRAPH:
 	do_dispose(data, buf, len, command);
+	break;
+    case DRV_SEND_MIDI_SYS_EX:
+	do_send_midi_sysex(data, buf, len);
 	break;
     default:
 	r = -1;
@@ -1041,7 +1047,7 @@ static void do_dispose(our_data_t* data, char* buf, int len, int command)
     MIDIObjectRef obj;
     AUGraph g;
     if (command == DRV_DISPOSE_AU_GRAPH) {
-	if (!decode_au_graph(buf, &index, &g))
+	if (!decode_au_graph(buf, &index, g))
 	    goto error;
     } else {
 	if (!decode_midi_obj(buf, &index, &obj))
@@ -1057,6 +1063,60 @@ static void do_dispose(our_data_t* data, char* buf, int len, int command)
     ei_x_buff* x = &data->x;
     encode_ok_or_error(x, err);
 }
+
+void free_the_bin(MIDISysexSendRequest* sysex)
+{
+    UInt8* bin = reinterpret_cast<UInt8*>(sysex->completionRefCon);
+    delete[] bin;
+    sysex->completionRefCon = NULL;
+}
+
+static void do_send_midi_sysex(our_data_t* data, char* buf, int len)
+{
+    OSStatus err = -1;
+    int index = 0;
+    if (!decode_version_and_tuple_header(buf, &index, 2))
+	goto error;
+    MIDIObjectRef obj;
+    if (!decode_midi_obj(buf, &index, &obj))
+	goto error;
+    MIDIEndpointRef endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
+    long sz;
+    int i = index;
+    if (ei_decode_binary(buf, &i, NULL, &sz) != 0)
+	goto error;
+    UInt8* bin = new UInt8[sz];
+    try {
+	if (ei_decode_binary(buf, &index, bin, &sz) != 0)
+	    goto error;
+    } catch (...) {
+	delete[] bin;
+    }
+    MIDISysexSendRequest sysex;
+    sysex.destination = endpoint;
+    sysex.data = bin;
+    sysex.bytesToSend = sz;
+    sysex.complete = 0;
+    sysex.completionProc = free_the_bin;
+    sysex.completionRefCon = bin;
+    err = MIDISendSysex(&sysex);
+    if (err != noErr)
+	free_the_bin(&sysex);
+    error: ;
+    ei_x_buff* x = &data->x;
+    encode_ok_or_error(x, err);
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 

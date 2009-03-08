@@ -1,6 +1,7 @@
 -module(midi_mac).
 
 -include("midi.hrl").
+-include("midi_mac.hrl").
 
 %% Platform-specific
 -export([get_port/0, test/0, now/0, au_graph_initialize/1, au_graph_start/1,
@@ -49,6 +50,8 @@
 -define(DRV_DISPOSE_CLIENT, 21).
 -define(DRV_DISPOSE_PORT, 23).
 -define(DRV_DISPOSE_AU_GRAPH, 24).
+
+-define(DRV_SEND_MIDI_SYSEX, 25).
 
 get_port() ->
     case whereis(erl_midi) of
@@ -215,22 +218,25 @@ send_midi(Port, Endpoint, Timestamp, Data) ->
     BinTimestamp = <<Timestamp:64/integer-unsigned-native>>,
     do_op(?DRV_SEND_MIDI, {Port, Endpoint, BinTimestamp, Data}).
 
+send_midi_sysex(Port, Data) ->
+    do_op(?DRV_SEND_MIDI_SYSEX, {Port, Data}).
+
 create_output_port(Client, Name) ->
     do_op(?DRV_CREATE_OUTPUT_PORT, {Client, Name}).
 
 create_input_port(Client, Name) ->
     do_op(?DRV_CREATE_INPUT_PORT, {Client, Name}).
 
-connect_source(Port, Source) ->
-    do_op(?DRV_CONNECT_SOURCE, {Port, Source}).
+connect_source(MidiPort, Source) ->
+    do_op(?DRV_CONNECT_SOURCE, {MidiPort, Source}).
 
-dispose_port(Port, MidiPort) ->
+dispose_port(MidiPort) ->
     do_op(?DRV_DISPOSE_PORT, MidiPort).
 
-dispose_client(Port, Client) ->
+dispose_client(Client) ->
     do_op(?DRV_DISPOSE_CLIENT, Client).
 
-dispose_au_graph(Port, Graph) ->
+dispose_au_graph(Graph) ->
     do_op(?DRV_DISPOSE_AU_GRAPH, Graph).
 
 %% High-level API
@@ -246,14 +252,51 @@ open_output(OutputNum) ->
 open_input(InputNum) ->
     ok.
 
-close(OutputInputOrGraph) ->
-    ok.
+close(OutputInputOrSoftSynth) ->
+    case OutputInputOrSoftSynth of
+	{{'AUGraph', _} = Graph, _Synth} ->
+	    dispose_au_graph(Graph);
+	Ok ->
+	    ok
+    end.
 
 send(OutputHandle, MidiEvent) ->
-    ok.
+    case OutputHandle of
+	{{'AUGraph', _}, Synth} -> 
+	    case midi:midi_event_to_numbers(MidiEvent) of
+		{MidiMessage, MidiChannel, Param1, Param2} ->
+		    music_device_midi_event(Synth, MidiMessage, 
+					    MidiChannel, Param1, Param2);
+		{_Sysex, Data} ->
+		    music_device_midi_sys_ex(Synth, Data)
+	    end;
+	{OutputHandle, Endpoint} ->
+	    case midi:midi_event_to_numbers(MidiEvent) of
+		{MidiMessage, MidiChannel, Param1, Param2} ->
+		    midi_out(OutputHandle, Endpoint, 0, MidiMessage, 
+			     MidiChannel, Param1, Param2);
+		{_Sysex, Data} ->
+		    send_midi_sysex(OutputHandle, Data)
+	    end
+    end.
 
 open_soft_synth_output() ->
-    ok.
+    {ok, OutGraph} = new_au_graph(),
+    CD = #'ComponentDescription'{componentManufacturer = get_au_const(kAudioUnitManufacturer_Apple)},
+    CD1 = CD#'ComponentDescription'{componentType = get_au_const(kAudioUnitType_MusicDevice),
+				    componentSubType = get_au_const(kAudioUnitSubType_DLSSynth)},
+    {ok, SynthNode} = au_graph_add_node(OutGraph, CD1),
+    CD2 = CD#'ComponentDescription'{componentType = get_au_const(kAudioUnitType_Effect),
+				    componentSubType = get_au_const(kAudioUnitSubType_PeakLimiter)},
+    {ok, LimiterNode} = au_graph_add_node(OutGraph, CD2),
+    CD3 = CD#'ComponentDescription'{componentType = get_au_const(kAudioUnitType_Output),
+				    componentSubType = get_au_const(kAudioUnitSubType_DefaultOutput)},
+    {ok, OutNode} = au_graph_add_node(OutGraph, CD3),
+    ok = au_graph_open(OutGraph),
+    ok = au_graph_connect_node_input(OutGraph, SynthNode, 0, LimiterNode, 0),
+    ok = au_graph_connect_node_input(OutGraph, LimiterNode, 0, OutNode, 0),
+    {ok, _CD, OutSynth} = au_graph_node_info(OutGraph, SynthNode),
+    {ok, {OutGraph, OutSynth}}.
 
-set_receiver(InputHandle, Pid) ->
+set_receiver(InputHandle, Pid) when is_pid(Pid) ->
     ok.
