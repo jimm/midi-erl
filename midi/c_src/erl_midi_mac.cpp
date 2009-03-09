@@ -104,8 +104,7 @@ static ErlDrvData start(ErlDrvPort port, char *)
 
 enum
 {
-    DRV_SET_SOUND_BANK = 1,
-    DRV_MUSIC_DEVICE_MIDI_EVENT,
+    DRV_MUSIC_DEVICE_MIDI_EVENT = 2,
     DRV_DEVICE_LIST,
     DRV_SOURCE_LIST,
     DRV_DESTINATION_LIST,
@@ -207,7 +206,6 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 	do_au_graph_node_info(data, buf, len);
 	break;
 
-    case DRV_SET_SOUND_BANK:
     case DRV_DEVICE_LIST:
     case DRV_SOURCE_LIST:
     case DRV_DESTINATION_LIST:

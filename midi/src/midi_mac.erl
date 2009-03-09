@@ -13,8 +13,8 @@
 	 list_destinations/0, list_sources/0, list_midi_devices/0, midi_out/7, send_midi/4]).
 
 %% High-level
--export([list_outputs/0, list_inputs/0, open_output/1, open_input/1, close/1,
-	 send/2, open_soft_synth_output/0, set_receiver/2]).
+-export([list_outputs/0, list_inputs/0, open_output/1, open_input/2, close/1,
+	 send/2, open_soft_synth_output/0]).
 
 %% -define(DEBUG, 1).
 
@@ -25,7 +25,6 @@
 -define(D(T), ok).
 -endif.
 
--define(DRV_SET_SOUND_BANK, 1).
 -define(DRV_MUSIC_DEVICE_MIDI_EVENT, 2).
 -define(DRV_DEVICE_LIST, 3).
 -define(DRV_SOURCE_LIST, 4).
@@ -61,7 +60,7 @@ get_port() ->
 		{error, already_loaded} -> ok;
 		E -> exit(E)
 	    end,
-	    Port = open_port({spawn, "erl_midi"}, []),
+	    Port = open_port({spawn, "erl_midi"}, [binary]),
 	    register(erl_midi, Port),
 	    Port;
 	Port ->
@@ -246,23 +245,37 @@ list_outputs() ->
 list_inputs() ->
     list_sources().
 
-open_output(OutputNum) ->
-    ok.
+open_output(Output) ->
+    S = integer_to_list(random:uniform(10000)),
+    Client = create_client("client"++S),
+    Port = create_output_port(Client, "output"++S),
+    {ok, {output, Port, Output, Client}}.
 
-open_input(InputNum) ->
-    ok.
+
+open_input(Input, ReceiverPid) ->
+    S = integer_to_list(random:uniform(10000)),
+    Client = create_client("client"++S),
+    Port = create_input_port(Client, "input"++S),
+    ok = connect_source(Port, Input),
+    ServerPid = spawn_link(fun() -> receive_server(ReceiverPid) end),
+    {ok, {input, Port, Client, ServerPid}}.
 
 close(OutputInputOrSoftSynth) ->
     case OutputInputOrSoftSynth of
-	{{'AUGraph', _} = Graph, _Synth} ->
+	{soft, {'AUGraph', _} = Graph, _Synth} ->
 	    dispose_au_graph(Graph);
-	Ok ->
-	    ok
+	{output, Port, _Endpoint, Client} ->
+	    dispose_port(Port),
+	    dispose_client(Client);
+	{input, Port, Client, ServerPid} ->
+	    ServerPid ! quit,
+	    dispose_port(Port),
+	    dispose_client(Client)
     end.
 
 send(OutputHandle, MidiEvent) ->
     case OutputHandle of
-	{{'AUGraph', _}, Synth} -> 
+	{soft, {'AUGraph', _}, Synth} -> 
 	    case midi:midi_event_to_numbers(MidiEvent) of
 		{MidiMessage, MidiChannel, Param1, Param2} ->
 		    music_device_midi_event(Synth, MidiMessage, 
@@ -270,13 +283,13 @@ send(OutputHandle, MidiEvent) ->
 		{_Sysex, Data} ->
 		    music_device_midi_sys_ex(Synth, Data)
 	    end;
-	{OutputHandle, Endpoint} ->
+	{output, Port, Endpoint, _Client} ->
 	    case midi:midi_event_to_numbers(MidiEvent) of
 		{MidiMessage, MidiChannel, Param1, Param2} ->
-		    midi_out(OutputHandle, Endpoint, 0, MidiMessage, 
+		    midi_out(Port, Endpoint, 0, MidiMessage, 
 			     MidiChannel, Param1, Param2);
 		{_Sysex, Data} ->
-		    send_midi_sysex(OutputHandle, Data)
+		    send_midi_sysex(Port, Data)
 	    end
     end.
 
@@ -296,7 +309,26 @@ open_soft_synth_output() ->
     ok = au_graph_connect_node_input(OutGraph, SynthNode, 0, LimiterNode, 0),
     ok = au_graph_connect_node_input(OutGraph, LimiterNode, 0, OutNode, 0),
     {ok, _CD, OutSynth} = au_graph_node_info(OutGraph, SynthNode),
-    {ok, {OutGraph, OutSynth}}.
+    {ok, {soft, OutGraph, OutSynth}}.
 
-set_receiver(InputHandle, Pid) when is_pid(Pid) ->
-    ok.
+receive_server(Pid) ->
+    erlang:port_connect(get_port(), Pid),
+    receive_server_loop(Pid).
+
+receive_server_loop(Pid) ->
+    receive
+	{_Port, {MidiData}} ->
+	    <<MidiNow:64/integer-unsigned-native, Data>> = MidiData,
+	    Event = midi:get_event(Data),
+	    Pid ! {midi_event, MidiNow, Event},
+	    receive_server_loop(Pid);
+	quit ->
+	    ok;
+	Other ->
+	    Pid ! {other, Other},
+	    receive_server_loop(Pid)
+    end.
+
+
+
+
