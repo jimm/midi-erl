@@ -16,7 +16,25 @@
 
 -export([get_var_length/1]).
 -export([get_meta_const/1, get_status_const/1, get_controller_const/1]).
--export([sharps_to_key/1, get_event/2, midi_event_to_numbers/1]).
+-export([sharps_to_key/1, get_event/1, get_event/2, midi_event_to_numbers/1]).
+
+status_nums() ->
+    [{?MIDI_STATUS_OFF, off},
+     {?MIDI_STATUS_ON, on},
+     {?MIDI_STATUS_POLY_AFTERTOUCH, poly_aftertouch},
+     {?MIDI_STATUS_CONTROLLER_CHANGE, controller_change},
+     {?MIDI_STATUS_PROGRAM_CHANGE, program_change},
+     {?MIDI_STATUS_AFTERTOUCH, aftertouch},
+     {?MIDI_STATUS_PITCH_BEND, pitch_bend},
+     {?MIDI_STATUS_SYSEX, sysex},
+     {?MIDI_STATUS_SONG_POINTER, song_pointer},
+     {?MIDI_STATUS_SYSEX_F7, sysex_f7},
+     {?MIDI_STATUS_TIMING_CLOCK, timing_clock},
+     {?MIDI_STATUS_START, start},
+     {?MIDI_STATUS_CONTINUE, continue},
+     {?MIDI_STATUS_STOP, stop},
+     {?MIDI_STATUS_ACTIVE_SENSING, active_sensing},
+     {?MIDI_STATUS_META, meta}].
 
 meta_nums() ->
     [{?MIDI_META_SEQUENCE_NUMBER, sequence_number},
@@ -117,19 +135,6 @@ controller_nums() ->
      {?MIDI_CONTROLLER_REGISTERED_PARAMETER_NUMBER_LSB, registered_parameter_number_lsb},
      {?MIDI_CONTROLLER_REGISTERED_PARAMETER_NUMBER_MSB, registered_parameter_number_msb}].
 
-status_nums() ->
-    [{?MIDI_STATUS_OFF, off},
-     {?MIDI_STATUS_ON, on},
-     {?MIDI_STATUS_POLY_AFTERTOUCH, poly_aftertouch},
-     {?MIDI_STATUS_CONTROLLER_CHANGE, controller_change},
-     {?MIDI_STATUS_PROGRAM_CHANGE, program_change},
-     {?MIDI_STATUS_AFTERTOUCH, aftertouch},
-     {?MIDI_STATUS_PITCH_BEND, pitch_bend},
-     {?MIDI_STATUS_SYSEX, sysex},
-     {?MIDI_STATUS_SONG_POINTER, song_pointer},
-     {?MIDI_STATUS_SYSEX_F7, sysex_f7},
-     {?MIDI_STATUS_META, meta}].
-
 name_conv(N, L) when is_integer(N) ->
     case lists:keysearch(N, 1, L) of
 	{value, {_, A}} ->
@@ -176,13 +181,22 @@ get_ev_controller_par(?MIDI_STATUS_CONTROLLER_CHANGE, A) ->
 get_ev_controller_par(_, A) ->
     A.
 
+get_event(<<B:1/binary, Data/binary>>) ->
+    get_event(B, Data).
+
 %% get a MIDI event
-get_event(<<Sysex:8>>, <<Data/binary>>) % var. length parameter
+get_event(<<Sysex>>, <<Data/binary>>) % var. length parameter
   when Sysex =:= ?MIDI_STATUS_SYSEX; Sysex =:= ?MIDI_STATUS_SYSEX_F7; Sysex =:= ?MIDI_STATUS_SONG_POINTER ->
     {Len, Rest0} = get_var_length(Data),
     <<EventData:Len/binary, Rest1/binary>> = Rest0,
     Name = midi:get_status_const(Sysex),
     {{Name, EventData}, Rest1};
+get_event(<<OneByte>>, Rest) 
+  when OneByte =:= ?MIDI_STATUS_TIMING_CLOCK; OneByte =:= ?MIDI_STATUS_START;
+       OneByte =:= ?MIDI_STATUS_CONTINUE; OneByte =:= ?MIDI_STATUS_STOP;
+       OneByte =:= ?MIDI_STATUS_ACTIVE_SENSING ->
+    Name = midi:get_status_const(OneByte),
+    {Name, Rest};
 get_event(<<N:4, Channel:4>>, <<A, B, Rest/binary>>) % two bytes parameter
   when N =:= ?MIDI_STATUS_OFF; N =:= ?MIDI_STATUS_ON; N =:= ?MIDI_STATUS_POLY_AFTERTOUCH;
        N =:= ?MIDI_STATUS_CONTROLLER_CHANGE; N =:= ?MIDI_STATUS_PITCH_BEND ->

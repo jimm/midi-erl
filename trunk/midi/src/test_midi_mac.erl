@@ -13,10 +13,10 @@
 %%
 %% Exported Functions
 %%
--export([z/0]).
+-export([z/0, y/0, y/1, w/1, p/0, p/1, q/1, o/1, o/0, v/1, v/0, oct_off/3]).
 
 -import(midi_mac, [new_au_graph/0, au_graph_add_node/2, au_graph_initialize/1, music_device_midi_event/5,
-		   au_graph_open/1, au_graph_start/1, create_au_graph/0, get_au_const/1,
+		   au_graph_open/1, au_graph_start/1, get_au_const/1,
 		   au_graph_connect_node_input/5, au_graph_node_info/2, music_device_midi_sys_ex/2]).
 
 -import(midi_mac, [create_client/1, list_destinations/0, create_output_port/2, midi_out/7]).
@@ -33,29 +33,6 @@
 %%
 %% API Functions
 %%
-
-t() ->
-    {ok, Graph, Synth} = create_au_graph(),
-    ?D(Synth),
-    ok = au_graph_initialize(Graph),
-    Channel = 0,
-    ?D(Graph),
-    ok = music_device_midi_event(Synth, ?MIDI_STATUS_CONTROLLER_CHANGE,
-			       Channel, ?MIDI_MESSAGE_BANK_MSB_CONTROL, 0),
-    ?D(Graph),
-    ok = music_device_midi_event(Synth, ?MIDI_STATUS_PROGRAM_CHANGE, 
-			       Channel, 10, 0),
-    ?D(Graph),
-    ok = au_graph_start(Graph),
-    ?D(Graph),
-    NoteNum = 60,
-    OnVelocity = 127,
-    ok = music_device_midi_event(Synth, ?MIDI_STATUS_ON, Channel, NoteNum, OnVelocity),
-    ?D(Graph),
-    timer:sleep(1000),
-    ok = music_device_midi_event(Synth, ?MIDI_STATUS_ON, Channel, NoteNum, 0),
-    ?D(Graph),
-    ok.
 
 x() ->
     {ok, Graph, Synth} = createAuGraph(),
@@ -116,10 +93,13 @@ z(Speed) ->
 		     (_) ->
 			  ok
 		  end, F).
-
 y() ->
+    y(1).
+
+y(Num) ->
+    Ds = list_destinations(),
+    {D, _} = lists:nth(Num+1, Ds),
     {C, _} = create_client("test"),
-    [{D, _} | _] = list_destinations(),
     {O, _} = create_output_port(C, "output"),
     NoteNum = 60,
     Channel = 0,
@@ -134,6 +114,123 @@ y() ->
 		  end, lists:seq(0, 30)),
     ok.
 
+w(Num) ->
+    Ds = midi_mac:list_outputs(),
+    {D, _} = lists:nth(Num+1, Ds),
+    {ok, Output} = midi_mac:open_output(D),
+    NoteNum = 60,
+    Channel = 0,
+    OnVelocity = 50,
+    OffVelocity = 0,
+    lists:foreach(fun(N) ->
+			  ok = midi_mac:send(Output, {on, Channel, NoteNum+N, OnVelocity}),
+			  ok = midi_mac:send(Output, {on, Channel, NoteNum-N, OnVelocity}),
+			  timer:sleep(50),
+			  ok = midi_mac:send(Output, {on, Channel, NoteNum+N, OffVelocity}),
+			  ok = midi_mac:send(Output, {on, Channel, NoteNum-N, OffVelocity})
+		  end, lists:seq(0, 30)),
+    ok = midi_mac:close(Output),
+    ok.
+
+v() ->
+    v(1).
+
+receiver_tester() ->
+    receive
+	{midi_event, _, timing_clock} ->
+%% 	    io:format("c "),
+	    ok;
+	{midi_event, _, active_sensing} ->
+%% 	    io:format("a "),
+	    ok;
+	quit ->
+	    exit(normal);
+	T ->
+	    io:format("got ~p  \n", [T])
+    end,
+    receiver_tester().
+
+v(Num) ->
+    Ds = midi_mac:list_inputs(),
+    {D, _} = lists:nth(Num+1, Ds),
+    ReceiverPid = spawn(fun() -> receiver_tester() end),
+    timer:sleep(100),
+    {ok, Input} = midi_mac:open_input(D, ReceiverPid),
+    timer:sleep(10000),
+    ReceiverPid ! quit,
+    midi_mac:close(Input).
+
+q(Num) ->
+    Ds = midi_mac:list_inputs(),
+    {D, _} = lists:nth(Num+1, Ds),
+    ReceiverPid = spawn(fun() -> receiver_tester() end),
+    timer:sleep(100),
+    {ok, Input} = midi_mac:open_input(D, ReceiverPid),
+    w(Num),
+    timer:sleep(10000),
+    ReceiverPid ! quit,
+    midi_mac:close(Input).
+
+
+
+o() ->
+    o(1).
+
+oct_off(Ch, Note, Output) ->
+    io:format("oct_off ~p\n", [Note]),
+    midi_mac:send(Output, {on, Ch, Note, 0}).
+
+oct_on(Ons, Output) ->
+    lists:foreach(fun({Ch, Note}) ->
+			  Note12 = Note+12,
+			  io:format("oct_on ~p\n", [Note12]),
+			  midi_mac:send(Output, {on, Ch, Note12, 35}),
+			  timer:apply_after(50, ?MODULE, oct_off, [Ch, Note12, Output])
+		  end, Ons),
+    ok.
+
+oct_loop(Ons, Output) ->
+    receive
+	{midi_event, _, {on, Ch, Note, 0}} ->
+	    io:format("off* ~p\n", [Note]),
+	    NewOns = Ons -- [{Ch, Note}],
+	    oct_loop(NewOns, Output);
+	{midi_event, _, {off, Ch, Note, _Vel}} ->
+	    io:format("off ~p\n", [Note]),
+	    NewOns = Ons -- [{Ch, Note}],
+	    oct_loop(NewOns, Output);
+	{midi_event, _, {on, Ch, Note, _Vel}} ->
+	    io:format("on ~p\n", [Note]),
+	    NewOns = Ons ++ [{Ch, Note}],
+	    oct_on([{Ch, Note}], Output),
+	    oct_loop(NewOns, Output);
+	{midi_event, _, _} ->
+	    oct_loop(Ons, Output);
+	quit ->
+	    exit(normal);
+	T ->
+	    io:format("other ~p  \n", [T]),
+	    oct_loop(Ons, Output)
+    end.
+
+o(Num) ->
+    Is = midi_mac:list_inputs(),
+    {I, _} = lists:nth(Num+1, Is),
+    timer:sleep(100),
+    Os = midi_mac:list_outputs(),
+    {O, _} = lists:nth(Num+1, Os),
+    {ok, Output} = midi_mac:open_output(O),
+    ReceiverPid = spawn(fun() -> oct_loop([], Output) end),
+    {ok, Input} = midi_mac:open_input(I, ReceiverPid),
+    io:format("Input, Output, ReceiverPid ~p\n", [[Input, Output, ReceiverPid]]),
+    timer:sleep(100000),
+    ReceiverPid ! quit,
+    ok = midi_mac:close(Input),
+    ok = midi_mac:close(Output).
+
+
+
+
 transpose(L, N) when is_list(L) ->
     [trans(I, N) || I <- L].
 
@@ -141,6 +238,71 @@ trans({Delay, {Status, Channel, NoteNum, Velocity}}, N) when Status=:= on; Statu
     {Delay, {Status, Channel, NoteNum+N, Velocity}};
 trans(T, _N) ->
     T.
+
+p() ->
+    p(1).
+
+p(Num) ->
+    Ds = midi_mac:list_outputs(),
+    {D, _} = lists:nth(Num+1, Ds),
+    {ok, O} = midi_mac:open_output(D),
+    NoteNum = 60,
+    Channel = 0,
+    OnVelocity = 50,
+    timer:sleep(1000),
+    lists:foreach(fun(N) ->
+			  ok = midi_mac:send(O, {on, Channel, NoteNum+N, OnVelocity}),
+			  ok = midi_mac:send(O, {on, Channel, NoteNum-N, OnVelocity}),
+			  timer:sleep(50),
+			  ok = midi_mac:send(O, {on, Channel, NoteNum+N, 0}),
+			  ok = midi_mac:send(O, {on, Channel, NoteNum-N, 0})
+		  end, lists:seq(0, 30)),
+    ok.
+
+b_loop(Output, N) ->
+    receive
+	{midi_event, _, {on, Ch, Note, 0}} ->
+	    io:format("off* ~p\n", [Note]),
+	    midi_mac:send(Output, {on, Ch, Note+N, 0}),
+	    b_loop(Output, N);
+	{midi_event, _, {off, Ch, Note, Vel}} ->
+	    io:format("off ~p\n", [Note]),
+	    midi_mac:send(Output, {off, Ch, Note+N, Vel}),
+	    b_loop(Output, N);
+	{midi_event, _, {on, Ch, Note, Vel}} ->
+	    io:format("on ~p\n", [Note]),
+	    midi_mac:send(Output, {on, Ch, Note+N, Vel}),
+	    b_loop(Output, N);
+	{midi_event, _, _} ->
+	    b_loop(Output, N);
+	quit ->
+	    exit(normal);
+	T ->
+	    io:format("other ~p  \n", [T]),
+	    b_loop(Output, N)
+    end.
+
+b(Num, Int) ->
+    Is = midi_mac:list_inputs(),
+    {I, _} = lists:nth(Num+1, Is),
+    timer:sleep(100),
+    Os = midi_mac:list_outputs(),
+    {O, _} = lists:nth(Num+1, Os),
+    {ok, Output} = midi_mac:open_output(O),
+    ReceiverPid = spawn(fun() -> b_loop(Output, Int) end),
+    {ok, Input} = midi_mac:open_input(I, ReceiverPid),
+    io:format("Input, Output, ReceiverPid ~p\n", [[Input, Output, ReceiverPid]]),
+    timer:sleep(100000),
+    ReceiverPid ! quit,
+    ok = midi_mac:close(Input),
+    ok = midi_mac:close(Output).
+
+b(Int) ->
+    b(1, Int).
+
+b() ->
+    b(1, 7).
+
 
 %%
 %% Local Functions
