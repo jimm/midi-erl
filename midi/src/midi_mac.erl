@@ -247,18 +247,34 @@ list_inputs() ->
 
 open_output(Output) ->
     S = integer_to_list(random:uniform(10000)),
-    Client = create_client("client"++S),
-    Port = create_output_port(Client, "output"++S),
-    {ok, {output, Port, Output, Client}}.
-
+    case create_client("client"++S) of
+	{error, N} ->
+	    {error, creating_client, N};
+	{Client, _Name} ->
+	    case create_output_port(Client, "output"++S) of
+		{error, N2} ->
+		    {error, creating_port, N2};
+		{Port, _Name2} -> 
+		    {ok, {output, Port, Output, Client}}
+	    end
+    end.
 
 open_input(Input, ReceiverPid) ->
     S = integer_to_list(random:uniform(10000)),
-    Client = create_client("client"++S),
-    Port = create_input_port(Client, "input"++S),
-    ok = connect_source(Port, Input),
-    ServerPid = spawn_link(fun() -> receive_server(ReceiverPid) end),
-    {ok, {input, Port, Client, ServerPid}}.
+    case create_client("client"++S) of
+	{error, N} ->
+	    {error, creating_client, N};
+	{Client, _Name} ->
+	    case create_input_port(Client, "input"++S) of
+		{error, N2} ->
+		    {error, creating_port, N2};		
+		{Port, _Name2} ->		
+		    ok = connect_source(Port, Input),
+		    ServerPid = spawn_link(fun() -> receive_server(ReceiverPid) end),
+		    true = erlang:port_connect(get_port(), ServerPid),
+		    {ok, {input, Port, Client, ServerPid}}
+	    end
+    end.
 
 close(OutputInputOrSoftSynth) ->
     case OutputInputOrSoftSynth of
@@ -312,14 +328,15 @@ open_soft_synth_output() ->
     {ok, {soft, OutGraph, OutSynth}}.
 
 receive_server(Pid) ->
-    erlang:port_connect(get_port(), Pid),
     receive_server_loop(Pid).
 
 receive_server_loop(Pid) ->
     receive
-	{_Port, {MidiData}} ->
-	    <<MidiNow:64/integer-unsigned-native, Data>> = MidiData,
-	    Event = midi:get_event(Data),
+	{_Port, {data, BinMidiData}} ->
+	    MidiData = binary_to_term(BinMidiData),
+	    {midi_data, [{_, <<MidiNow:64/integer-unsigned-native>>, Data}]} =
+		MidiData,
+	    {Event, _} = midi:get_event(Data),
 	    Pid ! {midi_event, MidiNow, Event},
 	    receive_server_loop(Pid);
 	quit ->

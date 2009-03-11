@@ -272,12 +272,10 @@ static int encode_timestamp(ei_x_buff* x, MIDITimeStamp t)
     return ei_x_encode_binary(x, &t, sizeof(t));
 }
 
-static MIDITimeStamp decode_timestamp(char* buf, int* index)
+static bool decode_timestamp(char* buf, int* index, MIDITimeStamp& t)
 {
-    MIDITimeStamp t;
     long len = sizeof(t);
-    ei_decode_binary(buf, index, &t, &len);
-    return t;
+    return ei_decode_binary(buf, index, &t, &len) == 0;
 }
 
 static void do_now(our_data_t* data)
@@ -423,6 +421,7 @@ static void encode_midi_object(ei_x_buff* x, MIDIObjectRef obj)
 	encode_CFString(x, pname);
 	CFRelease(pname);
     }
+    return;
     error: ;
     ei_x_encode_empty_list(x);
 }
@@ -430,7 +429,6 @@ static void encode_midi_object(ei_x_buff* x, MIDIObjectRef obj)
 // no arguments
 static void do_list_midi_objects(our_data_t* data, int command)
 {
-    ei_x_buff* x = &data->x;
     int n = 0;
     switch (command) {
     case DRV_DEVICE_LIST:
@@ -443,6 +441,7 @@ static void do_list_midi_objects(our_data_t* data, int command)
 	n = MIDIGetNumberOfDestinations();
 	break;
     }
+    ei_x_buff* x = &data->x;
     ei_x_encode_list_header(x, n);
     for (int i = 0; i < n; ++i) {
 	MIDIObjectRef obj = NULL;
@@ -947,18 +946,23 @@ static void do_send_midi(our_data_t* data, char* buf, int len)
     int arity;
     if (ei_decode_tuple_header(buf, &index, &arity) != 0)
 	goto error;
+    err = -2;
     if (arity != 4)
 	goto error;
     MIDIObjectRef obj;
+    err = -3;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
+    err = -5;
     MIDIPortRef port = reinterpret_cast<MIDIPortRef> (obj);
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
+    err = -6;
     MIDIEndpointRef endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
-    MIDITimeStamp t = decode_timestamp(buf, &index);
-    if (t == 0)
+    MIDITimeStamp t;
+    if (!decode_timestamp(buf, &index, t))
 	goto error;
+    err = -7;
     int type;
     if (ei_get_type(buf, &index, &type, &len) != 0)
 	goto error;
