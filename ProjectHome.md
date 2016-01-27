@@ -1,0 +1,1 @@
+A MIDI-driver for Erlang, currently MacOSX only, but a Windows version is in the works. Will also contain some utilities, like a MIDI file reader for Erlang.
