@@ -29,9 +29,8 @@
 #include <AudioToolbox.h> //for AUGraph
 #include <CoreMIDI.h>
 
-using namespace std;
-
 #include <iostream>
+using namespace std;
 
 #if DEBUG
 #define L fprintf(stderr, "%s:%d\r\n", __FILE__, __LINE__);
@@ -45,26 +44,33 @@ using namespace std;
 /* Driver interface declarations */
 static ErlDrvData start(ErlDrvPort port, char *command);
 static void stop(ErlDrvData drv_data);
-static int control(ErlDrvData drv_data, unsigned int command, char *buf,
-	int len, char **rbuf, int rlen);
+static ErlDrvSSizeT control(ErlDrvData drv_data, unsigned int command, char *buf,
+	ErlDrvSizeT len, char **rbuf, ErlDrvSizeT rlen);
+
+/* Stuff I had to shove here to make this compile */
+extern MIDITimeStamp AudioGetCurrentHostTime();
+extern OSStatus AUGraphNodeInfo(AUGraph graph, AUNode node, ComponentDescription *cd,
+                                AudioUnit *audioUnit);
+extern OSStatus MIDIPortConnectSource(MIDIPortRef port1, MIDIEndpointRef source,
+                                      MIDIEndpointRef port2);
 
 static ErlDrvEntry erl_midi_driver_entry = { //
-	NULL, /* init */
+	0, /* init */
 	start, //
 	stop, //
-	NULL, // output
-	NULL, /* ready_input */
-	NULL, /* ready_output */
-	"erl_midi", // the name of the driver
-	NULL, /* finish */
-	NULL, /* handle */
-	control, /* control */
-	NULL, /* timeout */
-	NULL, /* outputv */
-	NULL, // ready_async
-	NULL, /* flush */
-	NULL, /* call */
-	NULL /* event */
+	0, // output
+	0, /* ready_input */
+	0, /* ready_output */
+	(char *)"erl_midi", // the name of the driver
+	0, /* finish */
+	0, /* handle */
+	&control, /* control */
+	0, /* timeout */
+	0, /* outputv */
+	0, // ready_async
+	0, /* flush */
+	0, /* call */
+	0 /* event */
 };
 
 /* INITIALIZATION AFTER LOADING */
@@ -140,7 +146,7 @@ enum
 static ErlDrvBinary* ei_x_to_new_binary(ei_x_buff* x)
 {
     ErlDrvBinary* bin = driver_alloc_binary(x->index);
-    if (bin != NULL)
+    if (bin != 0)
 	memcpy(&bin->orig_bytes[0], x->buff, x->index);
     return bin;
 }
@@ -168,10 +174,10 @@ static void do_dispose(our_data_t* data, char* buf, int len, int command);
 
 static void do_send_midi_sysex(our_data_t* data, char* buf, int len);
 
-static int control(ErlDrvData drv_data, unsigned int command, char *buf,
-	int len, char **rbuf, int rlen)
+static ErlDrvSSizeT control(ErlDrvData drv_data, unsigned int command, char *buf,
+	ErlDrvSizeT len, char **rbuf, ErlDrvSizeT rlen)
 {
-    int r = 0;
+    ErlDrvSSizeT r = 0;
     //   char* s = get_s(buf, len);
     DD("command %d", command);
     our_data_t* data = reinterpret_cast<our_data_t*> (drv_data);
@@ -312,16 +318,16 @@ enum PutGet
 static void PutGetCFString(std::string& s, CFStringRef& cs, PutGet pg)
 {
     if (pg == pgPut) {
-	if (cs != NULL)
+	if (cs != 0)
 	    CFRelease(cs);
 	cs = CFStringCreateWithCString(kCFAllocatorDefault, s.c_str(),
 		kCFStringEncodingUTF8);
     } else {
-	if (cs == NULL) {
+	if (cs == 0) {
 	    s.clear();
 	} else {
 	    const char* p = CFStringGetCStringPtr(cs, kCFStringEncodingUTF8);
-	    if (p == NULL) {
+	    if (p == 0) {
 		int n = CFStringGetLength(cs) * 4;
 		char* buf = new char[n];
 		CFStringGetCString(cs, buf, n, kCFStringEncodingUTF8);
@@ -349,7 +355,7 @@ static CFStringRef decode_CFString(char* buf, int* index)
     ei_decode_string(buf, index, p);
     std::string s = p;
     delete[] p;
-    CFStringRef cs = NULL;
+    CFStringRef cs = 0;
     PutGetCFString(s, cs, pgPut);
     return cs;
 }
@@ -371,7 +377,7 @@ static void encode_tupled_binary(ei_x_buff* x, const char* name, void* data, int
 	encode_mac_error(x, err);
 }
 
-static void encode_midi_obj(ei_x_buff* x, MIDIObjectRef obj)
+static void encode_midi_obj(ei_x_buff* x, void* obj)
 {
     encode_tupled_binary(x,"MIDIObject", &obj, sizeof(obj), noErr);
 }
@@ -390,7 +396,7 @@ static bool decode_tupled_binary(char* buf, int* index, char* name, int size, vo
 	return false;
     long sz;
     int i = *index;
-    if (ei_decode_binary(buf, &i, NULL, &sz) != 0)
+    if (ei_decode_binary(buf, &i, 0, &sz) != 0)
 	return false;
     if (sz != size)
 	return false;
@@ -401,19 +407,19 @@ static bool decode_tupled_binary(char* buf, int* index, char* name, int size, vo
 
 static bool decode_midi_obj(char* buf, int* index, MIDIObjectRef* obj)
 {
-    return decode_tupled_binary(buf, index, "MIDIObject", sizeof(*obj), obj);
+  return decode_tupled_binary(buf, index, (char *)"MIDIObject", sizeof(*obj), obj);
 }
 
 static void encode_midi_object(ei_x_buff* x, MIDIObjectRef obj)
 {
     OSStatus err = -1;
-    if (obj == NULL)
+    if (obj == 0)
 	goto error;
     ei_x_encode_tuple_header(x, 2);
-    encode_midi_obj(x, obj);
+    encode_midi_obj(x, (void *)obj);
 //    encode_midi_id(x, obj);
     {
-	CFStringRef pname = NULL;
+	CFStringRef pname = 0;
 	err = MIDIObjectGetStringProperty(obj, kMIDIPropertyName, &pname);
 	DD("e %d\n", e);DD("pname %d\n", pname);
 	if (err != noErr)
@@ -444,7 +450,7 @@ static void do_list_midi_objects(our_data_t* data, int command)
     ei_x_buff* x = &data->x;
     ei_x_encode_list_header(x, n);
     for (int i = 0; i < n; ++i) {
-	MIDIObjectRef obj = NULL;
+	MIDIObjectRef obj = 0;
 	switch (command) {
 	case DRV_DEVICE_LIST:
 	    obj = MIDIGetDevice(i);
@@ -549,17 +555,17 @@ static void encode_component_description(ei_x_buff* x, const ComponentDescriptio
 
 static bool decode_au_graph(char* buf, int* index, AUGraph& graph)
 {
-    return decode_tupled_binary(buf, index, "AUGraph", sizeof(graph), &graph);
+    return decode_tupled_binary(buf, index, (char *)"AUGraph", sizeof(graph), &graph);
 }
 
 static bool decode_audio_unit(char* buf, int* index, AudioUnit& unit)
 {
-    return decode_tupled_binary(buf, index, "AudioUnit", sizeof(unit), &unit);
+    return decode_tupled_binary(buf, index, (char *)"AudioUnit", sizeof(unit), &unit);
 }
 
 static bool decode_au_node(char* buf, int* index, AUNode& node)
 {
-    return decode_tupled_binary(buf, index, "AUNode", sizeof(node), &node);
+    return decode_tupled_binary(buf, index, (char *)"AUNode", sizeof(node), &node);
 }
 
 
@@ -596,25 +602,27 @@ static void do_au_graph_node_info(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0;
-    if (!decode_version_and_tuple_header(buf, &index, 2))
-	goto error;
+    ei_x_buff* x = &data->x;
     AUGraph graph;
     AUNode node;
+    ComponentDescription cd;
+    AudioUnit audioUnit;
+
+    if (!decode_version_and_tuple_header(buf, &index, 2))
+	goto error;
     if (!decode_au_graph(buf, &index, graph))
 	goto error;
     if (!decode_au_node(buf, &index, node))
 	goto error;
-    ComponentDescription cd;
-    AudioUnit audioUnit;
     err = AUGraphNodeInfo(graph, node, &cd, &audioUnit);
     if (err != noErr)
 	goto error;
-    ei_x_buff* x = &data->x;
     ei_x_encode_tuple_header(x, 3);
     ei_x_encode_atom(x, "ok");
     encode_component_description(x, cd);
     encode_audio_unit(x, audioUnit, err);
     return;
+
     error: ;
     encode_mac_error(&data->x, err);
 }
@@ -634,7 +642,7 @@ static void do_au_graph_add_node(our_data_t* data, char* buf, int len)
     err = decode_component_description(buf, &index, cd);
     if (err != noErr)
 	goto error;
-    err = AUGraphAddNode(graph, &cd, &node);
+    err = AUGraphAddNode(graph, (const AudioComponentDescription *)&cd, &node);
     error: ;
     ei_x_buff* x = &data->x;
     if (err == noErr) {
@@ -751,11 +759,11 @@ error:
 static void do_create_client(our_data_t* data, char* buf, int len)
 {
     // create client and ports
-    MIDIClientRef client = NULL;
+    MIDIClientRef client = 0;
     int index = 0, version;
     ei_decode_version(buf, &index, &version);
     CFStringRef cs = decode_CFString(buf, &index);
-    OSErr err = MIDIClientCreate(cs, NULL, NULL, &client);
+    OSErr err = MIDIClientCreate(cs, 0, 0, &client);
     CFRelease(cs);
     ei_x_buff* x = &data->x;
     encode_midi_object(x, client, err);
@@ -844,16 +852,19 @@ static void do_music_device_midi_sys_ex(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0;
+    AudioUnit synthUnit;
+    long sz;
+    int i;
+    UInt8* bin;
+
     if (!decode_version_and_tuple_header(buf, &index, 2))
 	goto error;
-    AudioUnit synthUnit;
     if (!decode_audio_unit(buf, &index, synthUnit))
 	goto error;
-    long sz;
-    int i = index;
-    if (ei_decode_binary(buf, &i, NULL, &sz) != 0)
+    i = index;
+    if (ei_decode_binary(buf, &i, 0, &sz) != 0)
 	goto error;
-    UInt8* bin = new UInt8[sz];
+    bin = new UInt8[sz];
     try {
 	if (ei_decode_binary(buf, &index, bin, &sz) != 0)
 	    goto error;
@@ -863,6 +874,7 @@ static void do_music_device_midi_sys_ex(our_data_t* data, char* buf, int len)
     err = MusicDeviceSysEx(synthUnit, bin, sz);
     delete[] bin;
     error: ;
+
     ei_x_buff* x = &data->x;
     encode_ok_or_error(x, err);
 }
@@ -885,23 +897,25 @@ static void do_create_input_port(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0, version;
-    CFStringRef cs = NULL;
+    CFStringRef cs = 0;
+    int arity;
+    MIDIObjectRef obj;
+    MIDIClientRef client;
+    MIDIPortRef inPort;
+
     if (ei_decode_version(buf, &index, &version) != 0)
 	goto error;
-    int arity;
     if (ei_decode_tuple_header(buf, &index, &arity) != 0)
 	goto error;
     err = arity;
     if (arity != 2)
 	goto error;
-    MIDIObjectRef obj;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
-    MIDIClientRef client = reinterpret_cast<MIDIClientRef> (obj);
+    client = reinterpret_cast<MIDIClientRef> (obj);
     cs = decode_CFString(buf, &index);
-    if (cs == NULL)
+    if (cs == 0)
 	goto error;
-    MIDIPortRef inPort;
     err = MIDIInputPortCreate(client, cs, MyReadProc, data, &inPort);
     CFRelease(cs);
     error: ;
@@ -914,21 +928,24 @@ static void do_create_output_port(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0, version;
+    int arity;
+    MIDIObjectRef obj;
+    MIDIClientRef client;
+    CFStringRef cs;
+    MIDIPortRef outPort;
+
     if (ei_decode_version(buf, &index, &version) != 0)
 	goto error;
-    int arity;
     if (ei_decode_tuple_header(buf, &index, &arity) != 0)
 	goto error;
     if (arity != 2)
 	goto error;
-    MIDIObjectRef obj;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
-    MIDIClientRef client = reinterpret_cast<MIDIClientRef> (obj);
-    CFStringRef cs = decode_CFString(buf, &index);
-    if (cs == NULL)
+    client = reinterpret_cast<MIDIClientRef> (obj);
+    cs = decode_CFString(buf, &index);
+    if (cs == 0)
 	goto error;
-    MIDIPortRef outPort;
     err = MIDIOutputPortCreate(client, cs, &outPort);
     CFRelease(cs);
     error: ;
@@ -941,33 +958,36 @@ static void do_send_midi(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0, version;
+    int arity;
+    MIDIObjectRef obj;
+    MIDIPortRef port = reinterpret_cast<MIDIPortRef> (obj);
+    MIDIEndpointRef endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
+    MIDITimeStamp t;
+    int type;
+
     if (ei_decode_version(buf, &index, &version) != 0)
 	goto error;
-    int arity;
     if (ei_decode_tuple_header(buf, &index, &arity) != 0)
 	goto error;
     err = -2;
     if (arity != 4)
 	goto error;
-    MIDIObjectRef obj;
     err = -3;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
     err = -5;
-    MIDIPortRef port = reinterpret_cast<MIDIPortRef> (obj);
+    port = reinterpret_cast<MIDIPortRef> (obj);
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
     err = -6;
-    MIDIEndpointRef endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
-    MIDITimeStamp t;
+    endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
     if (!decode_timestamp(buf, &index, t))
 	goto error;
     err = -7;
-    int type;
     if (ei_get_type(buf, &index, &type, &len) != 0)
 	goto error;
     {
-	char* p = NULL, *m = NULL;
+	char* p = 0, *m = 0;
 	try {
 	    p = new char[len];
 	    long n;
@@ -1020,20 +1040,23 @@ static void do_connect_source(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0, version;
+    int arity;
+    MIDIObjectRef obj;
+    MIDIPortRef port = (MIDIPortRef)obj;
+    MIDIEndpointRef source = (MIDIEndpointRef) obj;
+
     if (ei_decode_version(buf, &index, &version) != 0)
 	goto error;
-    int arity;
     if (ei_decode_tuple_header(buf, &index, &arity) != 0)
 	goto error;
     if (arity != 2)
 	goto error;
-    MIDIObjectRef obj;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
-    MIDIPortRef port = (MIDIPortRef)obj;
+    port = (MIDIPortRef)obj;
     if (!decode_midi_obj(buf, &index, &obj))
 	goto error;
-    MIDIEndpointRef source = (MIDIEndpointRef) obj;
+    source = (MIDIEndpointRef) obj;
     err = MIDIPortConnectSource(port, source, port);
     error: ;
     ei_x_buff* x = &data->x;
@@ -1044,10 +1067,11 @@ static void do_dispose(our_data_t* data, char* buf, int len, int command)
 {
     OSStatus err = -1;
     int index = 0, version;
-    if (ei_decode_version(buf, &index, &version) != 0)
-	goto error;
     MIDIObjectRef obj;
     AUGraph g;
+
+    if (ei_decode_version(buf, &index, &version) != 0)
+	goto error;
     if (command == DRV_DISPOSE_AU_GRAPH) {
 	if (!decode_au_graph(buf, &index, g))
 	    goto error;
@@ -1070,32 +1094,35 @@ void free_the_bin(MIDISysexSendRequest* sysex)
 {
     UInt8* bin = reinterpret_cast<UInt8*>(sysex->completionRefCon);
     delete[] bin;
-    sysex->completionRefCon = NULL;
+    sysex->completionRefCon = 0;
 }
 
 static void do_send_midi_sysex(our_data_t* data, char* buf, int len)
 {
     OSStatus err = -1;
     int index = 0;
-    if (!decode_version_and_tuple_header(buf, &index, 2))
-	goto error;
     MIDIObjectRef obj;
-    if (!decode_midi_obj(buf, &index, &obj))
-	goto error;
     MIDIEndpointRef endpoint = reinterpret_cast<MIDIEndpointRef> (obj);
     long sz;
-    int i = index;
-    if (ei_decode_binary(buf, &i, NULL, &sz) != 0)
+    int i;
+    UInt8* bin;
+    MIDISysexSendRequest sysex;
+
+    if (!decode_version_and_tuple_header(buf, &index, 2))
 	goto error;
-    UInt8* bin = new UInt8[sz];
+    if (!decode_midi_obj(buf, &index, &obj))
+	goto error;
+    i = index;
+    if (ei_decode_binary(buf, &i, 0, &sz) != 0)
+	goto error;
+    bin = new UInt8[sz];
     try {
 	if (ei_decode_binary(buf, &index, bin, &sz) != 0)
 	    goto error;
     } catch (...) {
 	delete[] bin;
     }
-    MIDISysexSendRequest sysex;
-    sysex.destination = endpoint;
+    sysex.destination = reinterpret_cast<MIDIEndpointRef> (obj);
     sysex.data = bin;
     sysex.bytesToSend = sz;
     sysex.complete = 0;
