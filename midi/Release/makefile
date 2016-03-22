@@ -44,7 +44,7 @@ all: liberl_midi.dylib
 liberl_midi.dylib: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: MacOS X C++ Linker'
-	g++ -L/usr/local/lib/erlang/usr/lib -shared -Xlinker -bundle -Xlinker -flat_namespace -Xlinker -undefined dynamic_lookup -dynamiclib -o "liberl_midi.dylib" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -L/opt/local/lib/erlang/usr/lib -shared -Xlinker -bundle -Xlinker -flat_namespace -Xlinker -undefined dynamic_lookup -dynamiclib -o "liberl_midi.dylib" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -16,11 +16,6 @@
  *     $Id$
  */
 
-/*
- * Purpose: A driver using libpq to connect to Postgres
- * from erlang, a sample for the driver documentation
- */
-
 #include <erl_driver.h>
 #include <ei.h>
 
@@ -1136,19 +1131,4 @@ static void do_send_midi_sysex(our_data_t* data, char* buf, int len)
     encode_ok_or_error(x, err);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+int main(int argc, char **argv) {}

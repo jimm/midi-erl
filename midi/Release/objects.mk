@@ -4,4 +4,4 @@
 
 LIBS := -lerts
 
-USER_OBJS := /usr/local/lib/erlang/erts-5.6.5/bin/beam.smp
+USER_OBJS := /opt/local/lib/erlang/erts-7.2.1/bin/beam.smp
